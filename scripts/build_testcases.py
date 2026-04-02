@@ -105,6 +105,23 @@ def build_test_case(sub):
     }
 
 
+def _load_dotenv():
+    """Parse .env and .secrets into a dict; os.environ values take precedence."""
+    env = {}
+    for dotfile in (REPO_ROOT / ".env", REPO_ROOT / ".secrets"):
+        if dotfile.exists():
+            for line in dotfile.read_text().splitlines():
+                line = line.strip()
+                if line and not line.startswith("#") and "=" in line:
+                    key, _, value = line.partition("=")
+                    env.setdefault(key.strip(), value.strip())
+    # Env vars already set in the process take precedence
+    for key in list(env):
+        if key in os.environ:
+            env[key] = os.environ[key]
+    return env
+
+
 def build_assertions():
     """Return the 5 llm-rubric assertions for grading dimensions."""
     return [
@@ -191,8 +208,9 @@ def get_grading_provider():
     Returns either a string like 'anthropic:messages:claude-3-5-sonnet-latest' or a dict with id and config
     for providers that need custom base URLs (e.g. Anthropic-compatible gateways).
     """
-    model = os.environ.get("ANTHROPIC_MODEL", "claude-3-5-sonnet-latest")
-    base_url = os.environ.get("ANTHROPIC_BASE_URL")
+    env = _load_dotenv()
+    model = env.get("ANTHROPIC_MODEL", "claude-3-5-sonnet-latest")
+    base_url = env.get("ANTHROPIC_BASE_URL")
     provider_id = f"anthropic:messages:{model}"
     if base_url:
         return {
