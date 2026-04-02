@@ -1,0 +1,175 @@
+name: Judge Submissions
+
+on:
+  push:
+    paths:
+      - 'submissions/**'
+  pull_request:
+    paths:
+      - 'submissions/**'
+
+jobs:
+  judge:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # To persist results
+      pull-requests: write  # To comment on PRs with results
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Necessary for PR diffing
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: requirements.txt
+
+      - name: Cache npm downloads
+        uses: actions/cache@v4
+        continue-on-error: true  # act local runs may fail due to missing node
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-npm-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        continue-on-error: true  # act local runs may skip this
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: |
+          npm install
+          pip install -r requirements.txt
+
+      - name: Fetch GitHub issues
+        run: python scripts/fetch_issues.py
+        env:
+          PAT_GITHUB: ${{ secrets.PAT_GITHUB }}
+
+      - name: Build test cases
+        id: build
+        run: |
+          python scripts/build_testcases.py
+          echo "has_new=$(cat .promptfoo/has_new_evaluations 2>/dev/null || echo true)" >> $GITHUB_OUTPUT
+        env:
+          PAT_GITHUB: ${{ secrets.PAT_GITHUB }}
+
+      - name: Run evaluation
+        if: steps.build.outputs.has_new == 'true'
+        continue-on-error: true  # promptfoo exits 100 on test failures, which is normal for grading
+        run: |
+          # Fall back to .env for local act runs (where secrets are empty)
+          if [ -z "$ANTHROPIC_API_KEY" ] && [ -f .env ]; then
+            export ANTHROPIC_API_KEY=$(grep -m1 '^ANTHROPIC_API_KEY=' .env | cut -d= -f2-)
+          fi
+          npm run eval
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+      - name: Generate leaderboard
+        run: python scripts/leaderboard.py
+
+      - name: Detect changed teams
+        id: changed-teams
+        if: github.event_name == 'pull_request'
+        run: |
+          TEAMS=$(git diff --name-only \
+            ${{ github.event.pull_request.base.sha }} ${{ github.sha }} \
+            | grep '^submissions/' \
+            | sed 's|submissions/\([^/]*\)/.*|\1|' \
+            | sort -u | tr '\n' ',')
+          echo "teams=${TEAMS%,}" >> $GITHUB_OUTPUT
+
+      - name: Post PR comment with team scores
+        if: github.event_name == 'pull_request'
+        continue-on-error: true  # act local runs may fail GitHub API calls
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const PASS = 0.70;
+            const changedTeams = '${{ steps.changed-teams.outputs.teams }}'.split(',').filter(Boolean);
+            let body = '## Judge Results\n\n';
+
+            if (fs.existsSync('results/latest.json')) {
+              const data = JSON.parse(fs.readFileSync('results/latest.json', 'utf8'));
+              body += `*Evaluated: ${data.evaluated_at}*\n\n`;
+
+              for (const team of changedTeams) {
+                const td = data.teams?.[team];
+                if (!td) {
+                  body += `### ${team}\nNo results found in latest evaluation.\n\n`;
+                  continue;
+                }
+
+                const passIcon = td.team_average >= PASS ? '✅' : '❌';
+                body += `### ${team} — Overall: **${td.team_average.toFixed(3)}** ${passIcon}\n\n`;
+                body += '| Sub | Issue | Score | Acc | Comp | Action | Clarity | Context | Pass |\n';
+                body += '|-----|-------|-------|-----|------|--------|---------|---------|------|\n';
+
+                for (const [id, sub] of Object.entries(td.submissions ?? {})) {
+                  const s = sub.scores ?? {};
+                  body += `| ${id} | ${sub.issue} | ${(sub.weighted_total??0).toFixed(3)} | ${(s.accuracy??0).toFixed(2)} | ${(s.completeness??0).toFixed(2)} | ${(s.actionability??0).toFixed(2)} | ${(s.clarity??0).toFixed(2)} | ${(s.context_awareness??0).toFixed(2)} | ${sub.pass?'✅':'❌'} |\n`;
+                }
+                body += '\n';
+              }
+              body += `*Pass threshold: ${PASS} · [Full leaderboard](results/leaderboard.md)*\n`;
+            } else {
+              body += 'Results not yet available. Check workflow logs.\n';
+            }
+
+            // Find existing comment to update
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const botComment = comments.find(comment =>
+              comment.user.type === 'Bot' &&
+              comment.body.includes('## Judge Results')
+            );
+
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: body,
+              });
+            }
+
+      - name: Commit evaluation results
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        continue-on-error: true  # skip errors in manual/act runs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add results/
+          git diff --cached --quiet || git commit -m "chore: update evaluation results [skip ci]"
+          git push
+
+      - name: Upload results as artifact
+        continue-on-error: true  # act does not provide ACTIONS_RUNTIME_TOKEN
+        uses: actions/upload-artifact@v4
+        with:
+          name: judge-results
+          path: |
+            .promptfoo/results.json
+            .promptfoo/leaderboard.txt
+            results/
+          retention-days: 30
