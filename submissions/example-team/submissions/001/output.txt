@@ -4,7 +4,7 @@
 Correct the GitHub Advisory Database entry for node-glob security vulnerability to reflect the accurate affected version ranges, and communicate the correction to downstream users to prevent unnecessary breaking upgrades.
 
 ## User Story
-As a **maintainer of the GitHub Advisory Database**, I want to **correct the version range for the node-glob vulnerability** so that **users are not falsely warned about safe versions and are not forced into breaking upgrades**.
+As a **maintainer of the GitHub Advisory Database**, I want to **correct the version range for the node-glob vulnerability** so that **users are not falsely warned about safe versi breaking upgrades**.
 
 ## Background
 make it worse
