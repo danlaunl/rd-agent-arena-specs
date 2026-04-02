@@ -9,7 +9,7 @@ Usage:
     python scripts/fetch_issues.py
 
 Environment:
-    GITHUB_TOKEN  Optional. Authenticated requests get 5000/hr vs 60/hr.
+    PAT_GITHUB  Optional. Authenticated requests get 5000/hr vs 60/hr.
 """
 
 import json
@@ -162,7 +162,7 @@ def fetch_issue(owner, repo, number, token=None):
 
 
 def main():
-    token = os.environ.get("GITHUB_TOKEN")
+    token = os.environ.get("PAT_GITHUB")
 
     submissions = discover_submissions()
     if not submissions:

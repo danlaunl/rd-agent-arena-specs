@@ -311,7 +311,7 @@ def post_or_update_pr_comment(body):
         return "simulated"
 
     # --- Real PR mode: post/update via GitHub API ---
-    token = os.environ.get("GITHUB_TOKEN")
+    token = os.environ.get("PAT_GITHUB")
     repo = os.environ.get("GITHUB_REPOSITORY")
     pr_number = get_pull_request_number()
 
