@@ -52,20 +52,6 @@ stuff
 - Communication must be understandable to package maintainers and end users
 - Avoid technical jargon where possible
 
-### NFR-3: Timeliness
-- Advisory correction should be merged promptly to minimize confusion
-
-## Technical Specifications
-
-### Affected Components
-- GitHub Advisory Database entry (external repository)
-- isaacs/node-glob issue #637 (communication)
-
-### API Changes
-None (this is a documentation/correction task)
-
-### Data Model Changes
-- Advisory YAML: `affected.versions` field
   - From: `>= 10.3.7, <= 11.0.3`
   - To: `>=10.3.7 <10.5.0 || >=11.0.0 <11.1.0`
 
