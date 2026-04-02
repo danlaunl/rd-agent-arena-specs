@@ -1,0 +1,21 @@
+{
+  "name": "rd-specs-promptfoo",
+  "version": "1.0.0",
+  "description": "RD-Specs Competition Framework - Judge GitHub issue analysis submissions",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "fetch-issues": "python scripts/fetch_issues.py",
+    "build-testcases": "python scripts/build_testcases.py",
+    "eval": "promptfoo eval",
+    "report": "python scripts/leaderboard.py",
+    "judge": "python scripts/fetch_issues.py && python scripts/build_testcases.py && promptfoo eval && python scripts/leaderboard.py"
+  },
+  "keywords": ["promptfoo", "llm", "competition", "requirements-engineering"],
+  "dependencies": {
+    "promptfoo": "^0.95.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

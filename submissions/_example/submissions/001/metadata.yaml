@@ -1,0 +1,16 @@
+issue:
+  owner: isaacs
+  repo: node-glob
+  number: 637
+agents:
+  reverse-engineer:
+    model: gpt-4o
+    provider: openai
+  requirements-writer:
+    model: gpt-4o
+    provider: openai
+  requirements-reviewer:
+    model: gpt-4o
+    provider: openai
+submitted_at: "2025-11-20T14:30:00Z"
+notes: "This is an example submission demonstrating the expected format."

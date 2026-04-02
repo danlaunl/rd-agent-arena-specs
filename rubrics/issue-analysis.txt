@@ -1,0 +1,70 @@
+# Issue Analysis Grading Rubric
+
+This document describes the 5 grading dimensions used by the llm-rubric assertions to evaluate team submissions. The actual rubric text is embedded in `scripts/build_testcases.py`.
+
+## Dimensions
+
+### Accuracy (30%)
+Does the requirements document correctly identify the core problem, affected components, and factual details from the GitHub issue?
+
+**High scores:**
+- Correctly identifies whether the issue is a bug, feature request, security issue, etc.
+- Accurately describes the problem without factual errors
+- Identifies the correct code paths, versions, or components affected
+
+**Low scores:**
+- Misidentifies the type of issue
+- Contains factual errors about versions, components, or behavior
+- Misses the core problem entirely
+
+### Completeness (25%)
+Does the document capture ALL relevant details from the issue and comments? Are there significant omissions?
+
+**High scores:**
+- Covers all aspects mentioned in the issue description
+- Incorporates relevant details from comment discussions
+- Identifies implied requirements that weren't explicitly stated
+
+**Low scores:**
+- Misses key information from the issue body
+- Ignores important clarifications from comments
+- Leaves out critical constraints or dependencies
+
+### Actionability (20%)
+Could a developer pick up these requirements and implement them without significant clarification?
+
+**High scores:**
+- Clear acceptance criteria that are objectively verifiable
+- Sufficient technical detail to guide implementation
+- Unambiguous steps or specifications
+
+**Low scores:**
+- Vague or subjective success criteria
+- Missing technical specifications
+- Ambiguous language that would require clarification
+
+### Clarity (15%)
+Is the document well-structured, readable, and free of contradictions?
+
+**High scores:**
+- Logical organization with clear sections
+- Precise language without ambiguity
+- Consistent terminology throughout
+
+**Low scores:**
+- Confusing structure or flow
+- Contradictory statements
+- Jargon or undefined terms
+
+### Context Awareness (10%)
+Does the document demonstrate understanding of the broader ecosystem, edge cases, and downstream impacts?
+
+**High scores:**
+- Identifies how changes affect dependent systems
+- Considers edge cases and error conditions
+- Shows awareness of project conventions or patterns
+
+**Low scores:**
+- Treats the issue in isolation without considering impacts
+- Misses obvious edge cases
+- Ignores the broader system context
