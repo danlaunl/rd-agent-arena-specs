@@ -10,7 +10,6 @@ Usage:
 Requires: fetch_issues.py has been run to populate issues/cache/
 """
 
-import hashlib
 import json
 import os
 import sys
@@ -25,7 +24,6 @@ SUBMISSIONS_DIR = REPO_ROOT / "submissions"
 CACHE_DIR = REPO_ROOT / "issues" / "cache"
 CONFIG_PATH = REPO_ROOT / "promptfooconfig.yaml"
 PROMPTFOO_DIR = REPO_ROOT / ".promptfoo"
-RESULTS_DIR = REPO_ROOT / "results"
 PR_COMMENT_MARKER = "<!-- promptfooconfig.yaml -->"
 
 
@@ -59,42 +57,6 @@ def discover_submissions():
                 }
             )
     return results
-
-
-def compute_output_hash(output_path_str):
-    """Compute SHA-256 hash of the output file."""
-    path = REPO_ROOT / output_path_str
-    if not path.exists():
-        return ""
-    return hashlib.sha256(path.read_bytes()).hexdigest()
-
-
-def load_latest_results():
-    """Load latest evaluation results from results/latest.json."""
-    latest_path = RESULTS_DIR / "latest.json"
-    if not latest_path.exists():
-        return {}
-    try:
-        with open(latest_path) as f:
-            return json.load(f)
-    except (OSError, json.JSONDecodeError):
-        return {}
-
-
-def is_submission_cached(sub, latest_results):
-    """Check if a submission's output matches its last evaluated hash."""
-    team = sub["team"]
-    sub_id = sub["submission_id"]
-    current_hash = compute_output_hash(sub["output_path"])
-
-    latest_sub = (
-        latest_results.get("teams", {}).get(team, {}).get("submissions", {}).get(sub_id)
-    )
-    if not latest_sub:
-        return False, current_hash
-
-    cached_hash = latest_sub.get("output_sha256")
-    return (current_hash == cached_hash), current_hash
 
 
 def load_cached_issue(owner, repo, number):
@@ -223,6 +185,25 @@ def build_assertions():
     ]
 
 
+def get_grading_provider():
+    """Determine the grading provider config from environment variables.
+
+    Returns either a string like 'anthropic:messages:claude-3-5-sonnet-latest' or a dict with id and config
+    for providers that need custom base URLs (e.g. Anthropic-compatible gateways).
+    """
+    model = os.environ.get("ANTHROPIC_MODEL", "claude-3-5-sonnet-latest")
+    base_url = os.environ.get("ANTHROPIC_BASE_URL")
+    provider_id = f"anthropic:messages:{model}"
+    if base_url:
+        return {
+            "id": provider_id,
+            "config": {
+                "apiBaseUrl": base_url,
+            },
+        }
+    return provider_id
+
+
 def build_promptfoo_config(test_cases):
     """Generate the complete promptfooconfig.yaml structure."""
     return {
@@ -237,9 +218,10 @@ def build_promptfoo_config(test_cases):
         "tests": test_cases,
         "defaultTest": {
             "options": {
-                "provider": "openai:gpt-4o",  # grading model
+                "provider": get_grading_provider(),
             },
         },
+        "envFile": ".env",
         "outputPath": ".promptfoo/results.json",
     }
 
@@ -257,17 +239,16 @@ def write_promptfoo_config(config):
     return yaml_text
 
 
-def build_pr_comment_body(config_yaml, test_case_count, cached_count=0, skipped_count=0):
+def build_pr_comment_body(config_yaml, test_case_count, skipped_count):
     """Build a PR comment body that contains the generated config."""
     lines = [
         PR_COMMENT_MARKER,
         "## promptfooconfig.yaml",
         "",
-        "The generated promptfoo config is below for review. Submissions that have not changed since their last evaluation are skipped.",
+        "The generated promptfoo config is below for review.",
         "",
-        f"- New test cases: {test_case_count}",
-        f"- Cached (unchanged): {cached_count}",
-        f"- Skipped (missing issue cache): {skipped_count}",
+        f"- Test cases: {test_case_count}",
+        f"- Skipped submissions: {skipped_count}",
         "",
         "```yaml",
         config_yaml.rstrip(),
@@ -374,73 +355,29 @@ def main():
 
     print(f"Found {len(submissions)} submission(s)\n")
 
-    latest_results = load_latest_results()
     test_cases = []
-    skipped_cache = []
-    skipped_missing = 0
-    submission_hashes = {}
-
+    skipped = 0
     for sub in submissions:
         try:
-            cached, sha256 = is_submission_cached(sub, latest_results)
-            submission_hashes[f"{sub['team']}/{sub['submission_id']}"] = sha256
-
-            if cached:
-                # Copy from latest results for the leaderboard merging later
-                latest_entry = (
-                    latest_results.get("teams", {})
-                    .get(sub["team"], {})
-                    .get("submissions", {})
-                    .get(sub["submission_id"])
-                )
-                skipped_cache.append(
-                    {
-                        "team": sub["team"],
-                        "submission_id": sub["submission_id"],
-                        "from_latest": latest_entry,
-                    }
-                )
-                print(f"  CACHED {sub['team']}/{sub['submission_id']} (output unchanged)")
-                continue
-
             tc = build_test_case(sub)
             test_cases.append(tc)
             print(f"  {tc['description']}")
         except FileNotFoundError as e:
             print(f"  SKIP {sub['team']}/{sub['submission_id']}: {e}")
-            skipped_missing += 1
-
-    # Write internal cache files for leaderboard.py
-    PROMPTFOO_DIR.mkdir(exist_ok=True)
-    with open(PROMPTFOO_DIR / "skipped.json", "w") as f:
-        json.dump(skipped_cache, f, indent=2)
-    with open(PROMPTFOO_DIR / "submission_hashes.json", "w") as f:
-        json.dump(submission_hashes, f, indent=2)
-    with open(PROMPTFOO_DIR / "has_new_evaluations", "w") as f:
-        f.write("true" if test_cases else "false")
+            skipped += 1
 
     if not test_cases:
-        if skipped_cache:
-            print(f"\nAll {len(skipped_cache)} unchanged submission(s) are cached.")
-            # Remove old config so we don't accidentally re-run
-            if CONFIG_PATH.exists():
-                CONFIG_PATH.unlink()
-            return 0
         print("\nNo valid test cases. Make sure fetch_issues.py has been run.")
         return 1
 
     config = build_promptfoo_config(test_cases)
     config_yaml = write_promptfoo_config(config)
-    comment_body = build_pr_comment_body(
-        config_yaml, len(test_cases), len(skipped_cache), skipped_missing
-    )
+    comment_body = build_pr_comment_body(config_yaml, len(test_cases), skipped)
     posted = post_or_update_pr_comment(comment_body)
 
     print(f"\nGenerated {CONFIG_PATH} with {len(test_cases)} test case(s)")
-    if skipped_cache:
-        print(f"  (skipped {len(skipped_cache)} cached submission(s))")
-    if skipped_missing:
-        print(f"  (skipped {skipped_missing} submission(s) with missing issues)")
+    if skipped:
+        print(f"  (skipped {skipped} submission(s) with missing cached issues)")
     if posted == "simulated":
         print("  [act] Simulated PR comment written to .promptfoo/pr-comment.md")
     elif posted:

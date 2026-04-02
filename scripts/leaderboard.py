@@ -42,30 +42,61 @@ def parse_team_and_id(desc):
 
 
 def parse_results(results_path):
-    """Parse promptfoo eval results. Returns list of submission dicts."""
+    """Parse promptfoo eval results. Returns list of submission dicts.
+
+    Handles both legacy format (data["results"] is a list) and v3 format
+    (data["results"] is a dict with "results" and "tests" keys).
+    """
     if not results_path.exists():
         return []
 
     with open(results_path) as f:
         data = json.load(f)
 
+    raw_results = data.get("results", [])
+
+    # Detect v3 format: results is a dict with nested "results" and "tests"
+    if isinstance(raw_results, dict):
+        tests = raw_results.get("tests", [])
+        results_list = raw_results.get("results", [])
+    else:
+        # Legacy format: results is a list of dicts with description/assertionResults
+        tests = raw_results
+        results_list = raw_results
+
     subs = []
-    for result in data.get("results", []):
-        desc = result.get("description", "")
+    for idx, result in enumerate(results_list):
+        # Get description: try testCase.description (v3), then tests array, then result itself
+        desc = ""
+        tc = result.get("testCase")
+        if tc and isinstance(tc, dict):
+            desc = tc.get("description", "")
+        elif idx < len(tests):
+            desc = tests[idx].get("description", "")
+        else:
+            desc = result.get("description", "")
+
         team, sub_id, issue_ref = parse_team_and_id(desc)
 
         scores = {k: 0.0 for k in WEIGHTS}
-        # Collect dimension scores from assertions
-        for assertion in result.get("assertionResults", []):
-            metric = assertion.get("metric", "")
-            score = assertion.get("score", 0.0)
-            if metric in scores:
-                scores[metric] = score
 
-        # promptfoo 'score' is usually already the weighted avg if weights were in config
-        weighted_total = result.get("score", 0.0)
-        # If not, we could compute it:
-        # weighted_total = sum(scores[k] * WEIGHTS[k] for k in WEIGHTS)
+        # v3 format: scores in gradingResult.namedScores
+        grading = result.get("gradingResult", {})
+        named_scores = grading.get("namedScores", {})
+        for k in WEIGHTS:
+            if k in named_scores:
+                scores[k] = named_scores[k]
+
+        # Legacy fallback: collect from assertionResults
+        if not named_scores:
+            for assertion in result.get("assertionResults", []):
+                metric = assertion.get("metric", "")
+                score = assertion.get("score", 0.0)
+                if metric in scores:
+                    scores[metric] = score
+
+        # Use gradingResult.score (already weighted by promptfoo)
+        weighted_total = grading.get("score", result.get("score", 0.0))
 
         subs.append(
             {

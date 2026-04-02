@@ -15,6 +15,37 @@ import sys
 from pathlib import Path
 
 
+def call_api(prompt, options, context):
+    """Promptfoo provider API - returns the content of the output file.
+
+    Args:
+        prompt: The path to the team's output.txt file
+        options: Additional options (not used)
+        context: Additional context (not used)
+
+    Returns:
+        dict with response text
+    """
+    output_path = prompt.strip()
+
+    # Strip file:// prefix if present
+    if output_path.startswith("file://"):
+        output_path = output_path[7:]
+
+    p = Path(output_path)
+    if not p.exists():
+        return {
+            "error": f"output file not found: {output_path}",
+            "output": f"ERROR: File not found: {output_path}"
+        }
+
+    content = p.read_text()
+    return {
+        "output": content
+    }
+
+
+# Legacy main() for direct execution
 def main():
     if len(sys.argv) < 2:
         print("ERROR: provider.py received no prompt argument", file=sys.stderr)

@@ -11,9 +11,14 @@
     "report": "python scripts/leaderboard.py",
     "judge": "python scripts/fetch_issues.py && python scripts/build_testcases.py && promptfoo eval && python scripts/leaderboard.py"
   },
-  "keywords": ["promptfoo", "llm", "competition", "requirements-engineering"],
+  "keywords": [
+    "promptfoo",
+    "llm",
+    "competition",
+    "requirements-engineering"
+  ],
   "dependencies": {
-    "promptfoo": "^0.95.0"
+    "promptfoo": "^0.121.3"
   },
   "engines": {
     "node": ">=18.0.0"

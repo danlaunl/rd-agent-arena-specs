@@ -1,0 +1,96 @@
+# Requirements: GitHub Advisory Database Correction for node-glob
+
+## Summary
+Correct the GitHub Advisory Database entry for node-glob security vulnerability to reflect the accurate affected version ranges, and communicate the correction to downstream users to prevent unnecessary breaking upgrades.
+
+## User Story
+As a **maintainer of the GitHub Advisory Database**, I want to **correct the version range for the node-glob vulnerability** so that **users are not falsely warned about safe versions and are not forced into breaking upgrades**.
+
+## Background
+The GitHub Advisory Database published an entry for a node-glob vulnerability with the incorrect version range `>= 10.3.7, <= 11.0.3`. The actual affected versions are:
+- `>= 10.3.7, < 10.5.0` (v10 branch)
+- `>= 11.0.0, < 11.1.0` (v11 branch)
+
+This has caused:
+1. False security warnings for safe versions (10.4.x, 11.0.4+)
+2. Forced upgrades that break downstream packages (nyc, globby) due to API changes between major versions
+3. Confusion among users about which versions are actually safe
+
+## Acceptance Criteria
+
+### AC-1: Advisory Database Correction
+- [ ] The GitHub Advisory Database entry is updated with the correct version ranges
+- [ ] The corrected range is: `>=10.3.7 <10.5.0 || >=11.0.0 <11.1.0`
+- [ ] The advisory references the commit where the fix was applied
+
+### AC-2: Communication
+- [ ] A comment is added to the GitHub issue explaining the correction
+- [ ] Safe versions (10.4.9, 11.0.9, or newer) are explicitly mentioned
+
+### AC-3: v9 Branch Support
+- [ ] Issue #639 for v9 vulnerability fix is referenced
+- [ ] Users on v9 are directed to the appropriate fix
+
+## Functional Requirements
+
+### FR-1: Advisory Database Update
+- Submit a pull request to `github/advisory-database` (see #6429)
+- Correct the affected versions field in the advisory YAML
+- Include references to the original issue and the fix commit
+
+### FR-2: Issue Communication
+- Add a comment to isaacs/node-glob#637 with:
+  - Explanation of the incorrect range
+  - The correct range
+  - List of safe versions users can upgrade to
+  - Link to the merged advisory PR
+
+### FR-3: v9 Follow-up
+- Ensure issue #639 is linked for v9 users
+- Note that v9 requires a separate patch
+
+## Non-Functional Requirements
+
+### NFR-1: Accuracy
+- Version ranges must be verified against actual commits where fixes were applied
+- SemVer range syntax must be correct for npm ecosystem
+
+### NFR-2: Clarity
+- Communication must be understandable to package maintainers and end users
+- Avoid technical jargon where possible
+
+### NFR-3: Timeliness
+- Advisory correction should be merged promptly to minimize confusion
+
+## Technical Specifications
+
+### Affected Components
+- GitHub Advisory Database entry (external repository)
+- isaacs/node-glob issue #637 (communication)
+
+### API Changes
+None (this is a documentation/correction task)
+
+### Data Model Changes
+- Advisory YAML: `affected.versions` field
+  - From: `>= 10.3.7, <= 11.0.3`
+  - To: `>=10.3.7 <10.5.0 || >=11.0.0 <11.1.0`
+
+### Safe Versions for Users
+| Branch | Safe Version | Notes |
+|--------|--------------|-------|
+| v10    | 10.4.9+      | Patched, pre-v11 API |
+| v11    | 11.0.9+      | Patched, current API |
+| v9     | See #639     | Requires separate patch |
+
+## Edge Cases and Considerations
+
+1. **Downstream Compatibility**: Users forced to upgrade from safe versions (e.g., 10.4.5) to patch the false warning may experience breakage in tools like nyc and globby due to API changes between major versions.
+
+2. **v9 Users**: Users on the v9 branch are not covered by this advisory correction. A separate issue (#639) tracks the v9 fix.
+
+3. **Windows SemVer**: Node.js and npm ecosystem uses npm's semver implementation; ensure ranges are compatible.
+
+## Dependencies
+- GitHub Advisory Database PR: github/advisory-database#6429
+- Related issue: isaacs/node-glob#639 (v9 fix)
