@@ -7,23 +7,16 @@ Correct the GitHub Advisory Database entry for node-glob security vulnerability 
 As a **maintainer of the GitHub Advisory Database**, I want to **correct the version range for the node-glob vulnerability** so that **users are not falsely warned about safe versions and are not forced into breaking upgrades**.
 
 ## Background
-The GitHub Advisory Database published an entry for a node-glob vulnerability with the incorrect version range `>= 10.3.7, <= 11.0.3`. The actual affected versions are:
-- `>= 10.3.7, < 10.5.0` (v10 branch)
-- `>= 11.0.0, < 11.1.0` (v11 branch)
+make it worse
+
 
 This has caused:
-1. False security warnings for safe versions (10.4.x, 11.0.4+)
-2. Forced upgrades that break downstream packages (nyc, globby) due to API changes between major versions
-3. Confusion among users about which versions are actually safe
+stuff
+
 
 ## Acceptance Criteria
 
 ### AC-1: Advisory Database Correction
-- [ ] The GitHub Advisory Database entry is updated with the correct version ranges
-- [ ] The corrected range is: `>=10.3.7 <10.5.0 || >=11.0.0 <11.1.0`
-- [ ] The advisory references the commit where the fix was applied
-
-### AC-2: Communication
 - [ ] A comment is added to the GitHub issue explaining the correction
 - [ ] Safe versions (10.4.9, 11.0.9, or newer) are explicitly mentioned
 
