@@ -4,15 +4,15 @@ Build a multi-agent system that analyzes real GitHub issues and produces high-qu
 
 ## Your Task
 
-Design a **3-agent pipeline** that takes a GitHub issue as input and outputs a polished requirements document. Your agents must work together to:
+Create a **3-agent system** that takes a GitHub issue as input (preferably without the comments(?)) and outputs a polished requirements document. Your agents must work together to:
 
-1. **Reverse-engineer** the issue — understand the underlying problem, affected code, and context
+1. **Reverse-engineer** the issue from code — understand the underlying problem, affected code, and context
 2. **Write requirements** — draft formal specifications from the analysis
 3. **Review and refine** — validate the requirements for completeness and correctness
 
-You run your own agents using any tools and models you choose. When you're happy with the results, submit the outputs to this repo for scoring.
+Run [custom agents](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/create-custom-agents). When the results seem like they are ok, and aren't getting better without a different approach, submit the outputs to this repo for scoring.
 
-## Agent Roles
+## EXAMPLE Agent Roles
 
 ### Agent 1: Reverse Engineer
 - **Input:** Raw GitHub issue (title, body, comments, metadata)
@@ -65,17 +65,6 @@ issue:
   owner: isaacs
   repo: node-glob
   number: 637
-agents:
-  reverse-engineer:
-    model: gpt-4o
-    provider: openai
-  requirements-writer:
-    model: gpt-4o
-    provider: openai
-  requirements-reviewer:
-    model: gpt-4o
-    provider: openai
-submitted_at: 2025-11-20T14:30:00Z
 notes: ""
 ```
 
@@ -88,7 +77,7 @@ skills you gave your agents, and other relevant link files. (tools, SKILL.md, et
 
 #### `output.txt` — the final requirements document from Agent 3
 
-This is the file that gets scored. It should contain the reviewed, final requirements your pipeline produced for the issue referenced in `metadata.yaml`. **No manual edits allowed** — this must be the raw output of your agent pipeline.
+This is the file that gets scored. It should contain the reviewed, final requirements your pipeline produced for the issue referenced in `metadata.yaml`. **No manual edits allowed (??)** — this must be the raw output of your agent pipeline.
 
 ### 4. Example directory structure
 
@@ -142,31 +131,60 @@ Your `output.txt` files are graded by an LLM judge across 5 dimensions:
 
 Your final team score is the average across all your submissions.
 
-## Rules
+## Suggested Rules
 
-1. You may use any LLM provider and model you choose (OpenAI, Anthropic, local, etc.) — you run your own agents
-2. You must use exactly 3 agents: reverse engineer, requirements writer, requirements reviewer
 3. Submit only files within your `submissions/<team-name>/` directory
-4. `output.txt` must be the exact final output of your 3-agent pipeline — no manual edits allowed
+4. `output.txt` the exact final output of your 3-agent system? do we want manual edits allowed?
 5. Prompts must not hard-code specific issue content — they should be general-purpose
-6. You may submit outputs for multiple issues to improve your average score
 7. Number your submission folders sequentially (001, 002, 003, ...)
+8. only give agents access to the issue body, and not the subsequent comments? 
 
 ## Example Issue
 
-Here's a sample issue your agents might analyze:
+Here's a [sample issue](https://github.com/isaacs/node-glob/issues/637) your agents might analyze:
 
 > **node-glob #637:** "yesterday version 10.5.0 has vulnerabilities"
->
-> A security vulnerability was published with an incorrect version range (`>= 10.3.7, <= 11.0.3` instead of `>=10.3.7 <10.5.0 || >=11.0.0 <11.1.0`). The advisory database PR was merged to correct the range. Downstream packages (nyc, globby) broke when users force-upgraded due to API changes between major versions.
 
-A winning submission would produce requirements covering:
+```json
+{
+  "vulnerabilities": {
+    "glob": {
+      "name": "glob",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        {
+          "source": 1109809,
+          "name": "glob",
+          "dependency": "glob",
+          "title": "glob CLI: Command injection via -c/--cmd executes matches with shell:true",
+          "url": "https://github.com/advisories/GHSA-5j98-mcp5-4vw2",
+          "severity": "high",
+          "cwe": [
+            "CWE-78"
+          ],
+          "cvss": {
+            "score": 7.5,
+            "vectorString": "CVSS:3.1/AV:N/AC:H/PR:L/UI:N/S:U/C:H/I:H/A:H"
+          },
+          "range": ">=10.3.7 <=11.0.3"
+        }
+      ],
+      "effects": [],
+      "range": "10.3.7 - 11.0.3",
+      "nodes": [
+        "node_modules/glob"
+      ],
+      "fixAvailable": true
+    }
+  }
+}
+```
+
+A winning submission might produce requirements, maybe without access to the issue comments,  covering:
 - Correct identification of the incorrect vulnerability range
 - The actual vulnerable vs. safe versions
 - Downstream breakage from forced upgrades
 - The advisory database fix process
-- Follow-up actions (e.g., v9 patch in #639)
+- Follow-up actions 
 
-## Questions?
-
-Open an issue in this repo or contact the competition organizers.
