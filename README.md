@@ -75,7 +75,7 @@ notes: ""
 Feel free to add more directories / files under "prompts" or under "001" with the
 skills you gave your agents, and other relevant link files. (tools, SKILL.md, etc)
 
-#### `output.txt` — the final requirements document from Agent 3
+#### `output.txt` — the final requirements document
 
 This is the file that gets scored. It should contain the reviewed, final requirements your pipeline produced for the issue referenced in `metadata.yaml`. **No manual edits allowed (??)** — this must be the raw output of your agent pipeline.
 
@@ -129,7 +129,6 @@ Your `output.txt` files are graded by an LLM judge across 5 dimensions:
 
 **Pass threshold:** 70% weighted average
 
-Your final team score is the average across all your submissions.
 
 ## Suggested Rules
 
@@ -137,7 +136,7 @@ Your final team score is the average across all your submissions.
 4. `output.txt` the exact final output of your 3-agent system? do we want manual edits allowed?
 5. Prompts must not hard-code specific issue content — they should be general-purpose
 7. Number your submission folders sequentially (001, 002, 003, ...)
-8. only give agents access to the issue body, and not the subsequent comments? 
+8. only give agents access to the issue body, and not the subsequent comments? (eg once you/agent chooses the issue, delete or force that they do not read the subsequent comments. The issues and comments have been downloaded to a [json file](https://github.com/danlaunl/rd-agent-arena-specs/blob/main/issues_node_glob.json) )
 
 ## Example Issue
 
